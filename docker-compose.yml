@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: tableau_clone
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/tableau_clone
+      JWT_SECRET: your-secret-key
+      GOOGLE_SERVICE_ACCOUNT_KEY_FILE: /app/service-account-key.json
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend/service-account-key.json:/app/service-account-key.json
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_URL: http://localhost:5000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
