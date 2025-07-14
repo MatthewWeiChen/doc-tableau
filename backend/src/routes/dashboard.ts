@@ -5,14 +5,18 @@ import { authenticate, AuthRequest } from "../middleware/auth";
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// Get all dashboards for the authenticated user
-router.get("/", authenticate, async (req: AuthRequest, res) => {
+// Get all user's dashboards
+router.get("/", authenticate, async (req, res) => {
   try {
+    const authReq = req as AuthRequest;
+    console.log(`📊 Fetching dashboards for user: ${authReq.user?.email}`);
+
     const dashboards = await prisma.dashboard.findMany({
-      where: { userId: req.userId },
-      orderBy: { createdAt: "desc" },
+      where: { userId: authReq.userId },
+      orderBy: { updatedAt: "desc" },
     });
 
+    console.log(`✅ Found ${dashboards.length} dashboards`);
     res.json(dashboards);
   } catch (error) {
     console.error("Error fetching dashboards:", error);
@@ -20,15 +24,16 @@ router.get("/", authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// Get a specific dashboard
-router.get("/:id", authenticate, async (req: AuthRequest, res) => {
+// Get specific dashboard
+router.get("/:id", authenticate, async (req, res) => {
   try {
+    const authReq = req as AuthRequest;
     const { id } = req.params;
 
     const dashboard = await prisma.dashboard.findFirst({
       where: {
         id,
-        userId: req.userId,
+        userId: authReq.userId,
       },
     });
 
@@ -43,10 +48,15 @@ router.get("/:id", authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// Create a new dashboard
-router.post("/", authenticate, async (req: AuthRequest, res) => {
+// Create new dashboard
+router.post("/", authenticate, async (req, res) => {
   try {
+    const authReq = req as AuthRequest;
     const { title, description, sheetId, sheetName } = req.body;
+
+    console.log(
+      `📊 Creating dashboard '${title}' for user: ${authReq.user?.email}`
+    );
 
     if (!title || !sheetId) {
       return res.status(400).json({ error: "Title and sheetId are required" });
@@ -55,13 +65,14 @@ router.post("/", authenticate, async (req: AuthRequest, res) => {
     const dashboard = await prisma.dashboard.create({
       data: {
         title,
-        description,
+        description: description || "",
         sheetId,
-        sheetName,
-        userId: req.userId!,
+        sheetName: sheetName || "",
+        userId: authReq.userId!,
       },
     });
 
+    console.log("✅ Dashboard created:", dashboard.id);
     res.status(201).json(dashboard);
   } catch (error) {
     console.error("Error creating dashboard:", error);
@@ -69,9 +80,10 @@ router.post("/", authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// Update a dashboard
-router.put("/:id", authenticate, async (req: AuthRequest, res) => {
+// Update dashboard
+router.put("/:id", authenticate, async (req, res) => {
   try {
+    const authReq = req as AuthRequest;
     const { id } = req.params;
     const { title, description, sheetId, sheetName } = req.body;
 
@@ -79,7 +91,7 @@ router.put("/:id", authenticate, async (req: AuthRequest, res) => {
     const existingDashboard = await prisma.dashboard.findFirst({
       where: {
         id,
-        userId: req.userId,
+        userId: authReq.userId,
       },
     });
 
@@ -90,13 +102,19 @@ router.put("/:id", authenticate, async (req: AuthRequest, res) => {
     const dashboard = await prisma.dashboard.update({
       where: { id },
       data: {
-        title,
-        description,
-        sheetId,
-        sheetName,
+        title: title || existingDashboard.title,
+        description:
+          description !== undefined
+            ? description
+            : existingDashboard.description,
+        sheetId: sheetId || existingDashboard.sheetId,
+        sheetName:
+          sheetName !== undefined ? sheetName : existingDashboard.sheetName,
+        updatedAt: new Date(),
       },
     });
 
+    console.log("✅ Dashboard updated:", dashboard.id);
     res.json(dashboard);
   } catch (error) {
     console.error("Error updating dashboard:", error);
@@ -104,16 +122,17 @@ router.put("/:id", authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// Delete a dashboard
-router.delete("/:id", authenticate, async (req: AuthRequest, res) => {
+// Delete dashboard
+router.delete("/:id", authenticate, async (req, res) => {
   try {
+    const authReq = req as AuthRequest;
     const { id } = req.params;
 
     // Check if dashboard exists and belongs to user
     const existingDashboard = await prisma.dashboard.findFirst({
       where: {
         id,
-        userId: req.userId,
+        userId: authReq.userId,
       },
     });
 
@@ -125,6 +144,7 @@ router.delete("/:id", authenticate, async (req: AuthRequest, res) => {
       where: { id },
     });
 
+    console.log("✅ Dashboard deleted:", id);
     res.json({ message: "Dashboard deleted successfully" });
   } catch (error) {
     console.error("Error deleting dashboard:", error);

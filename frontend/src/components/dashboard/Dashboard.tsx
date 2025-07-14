@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useAuth } from "../../contexts/AuthContext.tsx";
 import { ChartContainer } from "../charts/ChartContainer.tsx";
 
 interface SheetData {
@@ -7,6 +8,7 @@ interface SheetData {
 }
 
 const Dashboard: React.FC = () => {
+  const { user, logout } = useAuth();
   const [sheetId, setSheetId] = useState(
     "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
   );
@@ -78,13 +80,24 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header with some user info*/}
       <nav className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <h1 className="text-xl font-semibold text-gray-900">
               📊 Analytics Dashboard
             </h1>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-600">
+                Welcome, {user?.name}!
+              </span>
+              <button
+                onClick={logout}
+                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </nav>

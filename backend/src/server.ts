@@ -3,12 +3,13 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
-import dataRoutes from "./routes/data";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
+
+console.log("🔍 Setting up server...");
 
 // Middleware
 app.use(helmet());
@@ -23,16 +24,13 @@ app.use(express.json());
 
 // Debug middleware
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`);
+  console.log(`📡 ${req.method} ${req.path}`);
   next();
 });
 
-// Routes
-app.use("/api/data", dataRoutes);
-
 // Health check
 app.get("/health", (req, res) => {
-  console.log("Health check called");
+  console.log("✅ Health check called");
   res.json({
     status: "OK",
     timestamp: new Date().toISOString(),
@@ -40,14 +38,32 @@ app.get("/health", (req, res) => {
   });
 });
 
+// Import and mount routes
+try {
+  console.log("🔍 Importing routes...");
+
+  // Auth routes
+  const authRoutes = require("./routes/auth");
+  app.use("/api/auth", authRoutes.default || authRoutes);
+  console.log("✅ Auth routes mounted");
+
+  // Data routes
+  const dataRoutes = require("./routes/data");
+  app.use("/api/data", dataRoutes.default || dataRoutes);
+  console.log("✅ Data routes mounted");
+} catch (error) {
+  console.error("❌ Failed to import routes:", error);
+}
+
 // 404 handler
 app.use("*", (req, res) => {
-  console.log("404 - Route not found:", req.method, req.originalUrl);
+  console.log("❌ 404 - Route not found:", req.method, req.originalUrl);
   res.status(404).json({ error: "Route not found" });
 });
 
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`📊 Test data: http://localhost:${PORT}/api/data/test`);
+  console.log(`🔐 Auth endpoints: http://localhost:${PORT}/api/auth/*`);
+  console.log(`📊 Data endpoints: http://localhost:${PORT}/api/data/*`);
 });
