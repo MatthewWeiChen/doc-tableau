@@ -6,48 +6,67 @@ import {
   Line,
   PieChart,
   Pie,
-  AreaChart,
-  Area,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Cell,
 } from "recharts";
 
 interface ChartContainerProps {
   title: string;
   data: any[];
-  chartType: "bar" | "line" | "pie" | "area";
+  chartType: "bar" | "line" | "pie";
+  xKey?: string;
+  yKey?: string;
 }
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
+const COLORS = [
+  "#0088FE",
+  "#00C49F",
+  "#FFBB28",
+  "#FF8042",
+  "#8884D8",
+  "#82CA9D",
+];
 
 export const ChartContainer: React.FC<ChartContainerProps> = ({
   title,
   data,
   chartType,
+  xKey,
+  yKey,
 }) => {
-  const processedData = data.slice(0, 10); // Limit to 10 items for better visualization
+  if (!data || data.length === 0) {
+    return (
+      <div className="bg-white shadow rounded-lg p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">{title}</h3>
+        <p className="text-gray-500">No data available</p>
+      </div>
+    );
+  }
+
+  // Auto-detect keys if not provided
+  const keys = Object.keys(data[0]);
+  const autoXKey = xKey || keys[0];
+  const autoYKey =
+    yKey || keys.find((key) => !isNaN(Number(data[0][key]))) || keys[1];
+
+  const processedData = data.slice(0, 10); // Limit for better visualization
 
   const renderChart = () => {
-    const dataKeys = Object.keys(data[0] || {});
-    const xKey = dataKeys[0];
-    const yKey =
-      dataKeys.find((key) => !isNaN(Number(data[0][key]))) || dataKeys[1];
-
     switch (chartType) {
       case "bar":
         return (
           <BarChart data={processedData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey={xKey} />
+            <XAxis dataKey={autoXKey} />
             <YAxis />
             <Tooltip />
             <Legend />
-            <Bar dataKey={yKey} fill="#8884d8" />
+            <Bar dataKey={autoYKey} fill="#8884d8" />
           </BarChart>
         );
 
@@ -55,11 +74,16 @@ export const ChartContainer: React.FC<ChartContainerProps> = ({
         return (
           <LineChart data={processedData}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey={xKey} />
+            <XAxis dataKey={autoXKey} />
             <YAxis />
             <Tooltip />
             <Legend />
-            <Line type="monotone" dataKey={yKey} stroke="#8884d8" />
+            <Line
+              type="monotone"
+              dataKey={autoYKey}
+              stroke="#8884d8"
+              strokeWidth={2}
+            />
           </LineChart>
         );
 
@@ -76,8 +100,8 @@ export const ChartContainer: React.FC<ChartContainerProps> = ({
               }
               outerRadius={80}
               fill="#8884d8"
-              dataKey={yKey}
-              nameKey={xKey}
+              dataKey={autoYKey}
+              nameKey={autoXKey}
             >
               {processedData.map((entry, index) => (
                 <Cell
@@ -88,23 +112,6 @@ export const ChartContainer: React.FC<ChartContainerProps> = ({
             </Pie>
             <Tooltip />
           </PieChart>
-        );
-
-      case "area":
-        return (
-          <AreaChart data={processedData}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey={xKey} />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Area
-              type="monotone"
-              dataKey={yKey}
-              stroke="#8884d8"
-              fill="#8884d8"
-            />
-          </AreaChart>
         );
 
       default:

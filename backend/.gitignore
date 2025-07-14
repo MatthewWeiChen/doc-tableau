@@ -25,7 +25,7 @@ database.db
 prisma/dev.db*
 
 # Google Service Account
-service-account-key.json
+service-accountkey.json
 *-service-account.json
 google-credentials.json
 credentials.json
