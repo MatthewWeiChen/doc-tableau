@@ -1,5 +1,6 @@
 import React from "react";
-import { AuthProvider, useAuth } from "./contexts/AuthContext.tsx";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { DashboardProvider } from "./contexts/DashboardContext.tsx";
 import AuthWrapper from "./components/auth/AuthWrapper.tsx";
 import Dashboard from "./components/dashboard/Dashboard.tsx";
 
@@ -17,7 +18,13 @@ const AppContent: React.FC = () => {
     );
   }
 
-  return isAuthenticated ? <Dashboard /> : <AuthWrapper />;
+  return isAuthenticated ? (
+    <DashboardProvider>
+      <Dashboard />
+    </DashboardProvider>
+  ) : (
+    <AuthWrapper />
+  );
 };
 
 function App() {
