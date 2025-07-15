@@ -1,5 +1,5 @@
 import React from "react";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext.tsx";
 import { DashboardProvider } from "./contexts/DashboardContext.tsx";
 import AuthWrapper from "./components/auth/AuthWrapper.tsx";
 import Dashboard from "./components/dashboard/Dashboard.tsx";

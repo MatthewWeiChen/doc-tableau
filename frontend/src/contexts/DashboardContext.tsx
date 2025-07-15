@@ -5,7 +5,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "./AuthContext.tsx";
 
 interface Dashboard {
   id: string;

@@ -38,22 +38,73 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Import and mount routes
+// Import and mount routes with better error handling
 try {
-  console.log("🔍 Importing routes...");
-
-  // Auth routes
+  console.log("🔍 Importing auth routes...");
   const authRoutes = require("./routes/auth");
   app.use("/api/auth", authRoutes.default || authRoutes);
-  console.log("✅ Auth routes mounted");
+  console.log("✅ Auth routes mounted at /api/auth");
+} catch (error) {
+  console.error("❌ Failed to import auth routes:", error);
+  console.error(
+    "Error details:",
+    error instanceof Error ? error.message : String(error)
+  );
+}
 
-  // Data routes
+try {
+  console.log("🔍 Importing data routes...");
   const dataRoutes = require("./routes/data");
   app.use("/api/data", dataRoutes.default || dataRoutes);
-  console.log("✅ Data routes mounted");
+  console.log("✅ Data routes mounted at /api/data");
 } catch (error) {
-  console.error("❌ Failed to import routes:", error);
+  console.error("❌ Failed to import data routes:", error);
+  console.error(
+    "Error details:",
+    error instanceof Error ? error.message : String(error)
+  );
 }
+
+try {
+  console.log("🔍 Importing dashboard routes...");
+  const dashboardRoutes = require("./routes/dashboard");
+  app.use("/api/dashboard", dashboardRoutes.default || dashboardRoutes);
+  console.log("✅ Dashboard routes mounted at /api/dashboard");
+} catch (error) {
+  console.error("❌ Failed to import dashboard routes:", error);
+  console.error(
+    "Error details:",
+    error instanceof Error ? error.message : String(error)
+  );
+}
+// Test route to verify dashboard mounting
+app.get("/api/dashboard-test", (req, res) => {
+  console.log("✅ Dashboard test route called");
+  res.json({ message: "Dashboard routes are working!" });
+});
+
+// List all routes for debugging
+app.get("/api/routes", (req, res) => {
+  const routes: string[] = [];
+  app._router.stack.forEach((middleware: any) => {
+    if (middleware.route) {
+      routes.push(
+        `${Object.keys(middleware.route.methods)} ${middleware.route.path}`
+      );
+    } else if (middleware.name === "router") {
+      middleware.handle.stack.forEach((handler: any) => {
+        if (handler.route) {
+          routes.push(
+            `${Object.keys(handler.route.methods)} ${middleware.regexp.source
+              .replace("\\", "")
+              .replace("?", "")}${handler.route.path}`
+          );
+        }
+      });
+    }
+  });
+  res.json({ routes });
+});
 
 // 404 handler
 app.use("*", (req, res) => {
@@ -66,4 +117,8 @@ app.listen(PORT, () => {
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🔐 Auth endpoints: http://localhost:${PORT}/api/auth/*`);
   console.log(`📊 Data endpoints: http://localhost:${PORT}/api/data/*`);
+  console.log(
+    `📋 Dashboard endpoints: http://localhost:${PORT}/api/dashboard/*`
+  );
+  console.log(`🔍 Debug routes: http://localhost:${PORT}/api/routes`);
 });
