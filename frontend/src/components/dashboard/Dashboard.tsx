@@ -3,6 +3,11 @@ import { useAuth } from "../../contexts/AuthContext.tsx";
 import { useDashboard } from "../../contexts/DashboardContext.tsx";
 import { ChartContainer } from "../charts/ChartContainer.tsx";
 import DashboardSidebar from "../DashboardSidebar.tsx";
+import SheetSelector from "../SheetSelector.tsx";
+import ChartConfigurator from "../ChartConfigurator.tsx";
+import { AdvancedCharts } from "../AdvancedCharts.tsx";
+import { ChartConfig } from "../../types/charts.ts";
+import PaginatedDataTable from "../PaginatedDataTable.tsx";
 
 interface SheetData {
   headers: string[];
@@ -12,27 +17,62 @@ interface SheetData {
 const Dashboard: React.FC = () => {
   const { user, logout } = useAuth();
   const { currentDashboard } = useDashboard();
-
   const [data, setData] = useState<SheetData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [selectedSheet, setSelectedSheet] = useState("");
+  const [charts, setCharts] = useState<ChartConfig[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Load data when currentDashboard changes
+  // Default charts when data loads
+  useEffect(() => {
+    if (data && data.headers.length > 0 && charts.length === 0) {
+      const defaultCharts: ChartConfig[] = [
+        {
+          id: "1",
+          title: "Overview Bar Chart",
+          type: "bar",
+          xKey: data.headers[0],
+          yKey: data.headers[1] || data.headers[0],
+        },
+        {
+          id: "2",
+          title: "Trend Line Chart",
+          type: "line",
+          xKey: data.headers[0],
+          yKey: data.headers[1] || data.headers[0],
+        },
+      ];
+      setCharts(defaultCharts);
+    }
+  }, [charts.length, data]);
+
+  // Load data when currentDashboard or selectedSheet changes
+  useEffect(() => {
+    if (currentDashboard && selectedSheet) {
+      fetchDataForDashboard(currentDashboard.sheetId, selectedSheet);
+    }
+  }, [currentDashboard, selectedSheet]);
+
+  // Reset selected sheet when dashboard changes
   useEffect(() => {
     if (currentDashboard) {
-      fetchDataForDashboard(currentDashboard.sheetId);
+      setSelectedSheet("");
+      setCharts([]); // Reset charts when switching dashboards
     }
   }, [currentDashboard]);
 
-  const fetchDataForDashboard = async (sheetId: string) => {
+  const fetchDataForDashboard = async (sheetId: string, sheetName: string) => {
     setLoading(true);
     setError("");
 
     try {
-      const response = await fetch(`/api/data/sheet/${sheetId}`);
+      const response = await fetch(
+        `/api/data/sheet/${sheetId}?sheetName=${encodeURIComponent(sheetName)}`
+      );
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.details || "Failed to fetch data");
+        throw new Error(errorData.error || "Failed to fetch data");
       }
 
       const result = await response.json();
@@ -44,30 +84,72 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleRefreshData = () => {
+    if (currentDashboard && selectedSheet) {
+      fetchDataForDashboard(currentDashboard.sheetId, selectedSheet);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <DashboardSidebar />
+      <div
+        className={`
+        fixed inset-y-0 left-0 z-30 w-80 bg-white shadow-lg transform transition-transform duration-300 ease-in-out
+        lg:translate-x-0 lg:static lg:inset-0
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+      `}
+      >
+        <DashboardSidebar />
+      </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <nav className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-10">
+          <div className="px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
-              <h1 className="text-xl font-semibold text-gray-900">
-                📊{" "}
-                {currentDashboard
-                  ? currentDashboard.title
-                  : "Analytics Dashboard"}
-              </h1>
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">
+              <div className="flex items-center">
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  </svg>
+                </button>
+                <h1 className="ml-2 lg:ml-0 text-lg sm:text-xl font-semibold text-gray-900 truncate">
+                  📊{" "}
+                  {currentDashboard
+                    ? currentDashboard.title
+                    : "Analytics Dashboard"}
+                </h1>
+              </div>
+              <div className="flex items-center space-x-2 sm:space-x-4">
+                <span className="hidden sm:block text-sm text-gray-600">
                   Welcome, {user?.name}!
                 </span>
                 <button
                   onClick={logout}
-                  className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
+                  className="bg-red-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-red-700 transition-colors"
                 >
                   Logout
                 </button>
@@ -77,7 +159,7 @@ const Dashboard: React.FC = () => {
         </nav>
 
         {/* Dashboard Content */}
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-4 sm:p-6 overflow-hidden">
           {!currentDashboard ? (
             <div className="text-center py-12">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">
@@ -88,158 +170,230 @@ const Dashboard: React.FC = () => {
                 visualization.
               </p>
             </div>
-          ) : loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto"></div>
-              <p className="mt-4 text-gray-600">Loading dashboard data...</p>
+          ) : (
+            <div className="space-y-6">
+              {/* Sheet Selection */}
+              <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+                <h2 className="text-lg font-medium text-gray-900 mb-4">
+                  Data Source Configuration
+                </h2>
+
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Google Sheet ID
+                  </label>
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <input
+                      type="text"
+                      value={currentDashboard.sheetId}
+                      readOnly
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 text-sm"
+                    />
+                    <button
+                      onClick={handleRefreshData}
+                      disabled={loading || !selectedSheet}
+                      className="w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+                    >
+                      {loading ? "Loading..." : "🔄 Refresh"}
+                    </button>
+                  </div>
+                </div>
+
+                <SheetSelector
+                  sheetId={currentDashboard.sheetId}
+                  selectedSheet={selectedSheet}
+                  onSheetChange={setSelectedSheet}
+                  disabled={loading}
+                />
+
+                {selectedSheet && (
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                    <p className="text-sm text-green-700">
+                      ✅ Currently viewing: <strong>{selectedSheet}</strong>
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Chart Configuration */}
+              {data && data.headers.length > 0 && (
+                <ChartConfigurator
+                  headers={data.headers}
+                  charts={charts}
+                  onChartsChange={setCharts}
+                />
+              )}
+
+              {/* Loading State */}
+              {loading && (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto"></div>
+                  <p className="mt-4 text-gray-600">
+                    Loading data from "{selectedSheet}"...
+                  </p>
+                </div>
+              )}
+
+              {/* Error State */}
+              {error && (
+                <div className="text-center py-12">
+                  <p className="text-red-600 mb-4">{error}</p>
+                  <button
+                    onClick={handleRefreshData}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {/* Dashboard Data Display */}
+              {data && !loading && (
+                <div className="space-y-6">
+                  {/* Stats Overview */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white overflow-hidden shadow rounded-lg">
+                      <div className="p-4 sm:p-5">
+                        <div className="flex items-center">
+                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                            <span className="text-white text-sm">📊</span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-500">
+                              Records
+                            </p>
+                            <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                              {data.data.length}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white overflow-hidden shadow rounded-lg">
+                      <div className="p-4 sm:p-5">
+                        <div className="flex items-center">
+                          <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                            <span className="text-white text-sm">📈</span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-500">
+                              Columns
+                            </p>
+                            <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                              {data.headers.length}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white overflow-hidden shadow rounded-lg">
+                      <div className="p-4 sm:p-5">
+                        <div className="flex items-center">
+                          <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                            <span className="text-white text-sm">📋</span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-500">
+                              Sheet
+                            </p>
+                            <p className="text-sm sm:text-lg font-bold text-gray-900 truncate">
+                              {selectedSheet}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white overflow-hidden shadow rounded-lg">
+                      <div className="p-4 sm:p-5">
+                        <div className="flex items-center">
+                          <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                            <span className="text-white text-sm">📊</span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-500">
+                              Charts
+                            </p>
+                            <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                              {charts.length}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Charts Grid - Responsive */}
+
+                  {charts.length > 0 && (
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                      {charts.map((chart) => {
+                        // Use AdvancedCharts for special chart types
+                        if (
+                          [
+                            "streamgraph",
+                            "spiral",
+                            "heatmap",
+                            "treemap",
+                          ].includes(chart.type)
+                        ) {
+                          return (
+                            <AdvancedCharts
+                              key={chart.id}
+                              title={chart.title}
+                              data={data.data}
+                              chartType={
+                                chart.type as
+                                  | "streamgraph"
+                                  | "spiral"
+                                  | "heatmap"
+                                  | "treemap"
+                              }
+                              xKey={chart.xKey}
+                              yKey={chart.yKey}
+                              className="w-full"
+                            />
+                          );
+                        }
+
+                        // Use regular ChartContainer for standard charts
+                        return (
+                          <ChartContainer
+                            key={chart.id}
+                            title={chart.title}
+                            data={data.data}
+                            chartType={
+                              chart.type as
+                                | "bar"
+                                | "line"
+                                | "pie"
+                                | "area"
+                                | "scatter"
+                                | "bubble"
+                            }
+                            xKey={chart.xKey}
+                            yKey={chart.yKey}
+                            zKey={chart.zKey}
+                            className="w-full"
+                          />
+                        );
+                      })}
+                    </div>
+                  )}
+                  {/* Data Table - Responsive */}
+                  {data && !loading && (
+                    <PaginatedDataTable
+                      data={data.data}
+                      headers={data.headers}
+                      title={`${selectedSheet} - Data Table`}
+                      itemsPerPage={25}
+                    />
+                  )}
+                </div>
+              )}
             </div>
-          ) : error ? (
-            <div className="text-center py-12">
-              <p className="text-red-600 mb-4">{error}</p>
-              <button
-                onClick={() => fetchDataForDashboard(currentDashboard.sheetId)}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
-              >
-                Retry
-              </button>
-            </div>
-          ) : data ? (
-            <>
-              {/* Stats Overview */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                <div className="bg-white overflow-hidden shadow rounded-lg">
-                  <div className="p-5">
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-white text-sm">📊</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">
-                          Total Records
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {data.data.length}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white overflow-hidden shadow rounded-lg">
-                  <div className="p-5">
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-white text-sm">📈</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">
-                          Columns
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {data.headers.length}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white overflow-hidden shadow rounded-lg">
-                  <div className="p-5">
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-white text-sm">💰</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">
-                          Data Quality
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">98%</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white overflow-hidden shadow rounded-lg">
-                  <div className="p-5">
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-white text-sm">🔄</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">
-                          Last Updated
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">Now</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Charts Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <ChartContainer
-                  title="Bar Chart Overview"
-                  data={data.data}
-                  chartType="bar"
-                />
-                <ChartContainer
-                  title="Trend Analysis"
-                  data={data.data}
-                  chartType="line"
-                />
-                <ChartContainer
-                  title="Distribution"
-                  data={data.data}
-                  chartType="pie"
-                />
-                <ChartContainer
-                  title="Secondary Metrics"
-                  data={data.data}
-                  chartType="bar"
-                  xKey={data.headers[2]}
-                  yKey={data.headers[1]}
-                />
-              </div>
-
-              {/* Data Table */}
-              <div className="bg-white shadow rounded-lg p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Data Table ({data.data.length} rows)
-                </h3>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        {data.headers.map((header, index) => (
-                          <th
-                            key={index}
-                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                          >
-                            {header}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {data.data.slice(0, 10).map((row, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          {data.headers.map((header, colIndex) => (
-                            <td
-                              key={colIndex}
-                              className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
-                            >
-                              {row[header]}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </>
-          ) : null}
+          )}
         </div>
       </div>
     </div>
